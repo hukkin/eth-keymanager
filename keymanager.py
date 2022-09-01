@@ -5,7 +5,7 @@ import pathlib
 import sys
 from urllib.request import Request, urlopen
 
-def request(resource, data=None):
+def request(resource: str, data: bytes | None = None):
     req = Request(f"{args.host}{resource}", data=data)
     req.add_header("authorization", f"Bearer {args.auth}")
     if data:
@@ -73,7 +73,18 @@ def import_keystores(args: argparse.Namespace) -> int:
         data = json.loads(text)
         pubkey = data["pubkey"]
         pubkey = pubkey if pubkey.startswith("0x") else "0x" + pubkey
-        is_new_validator = pubkey not in managed_keystores
+        print(f"Importing {pubkey}...")
+        if pubkey in managed_keystores:
+            print("The node already manages this validating pubkey. Skipping this one.")
+            continue
+        req_data = json.dumps({"keystores": [text], "passwords": [args.keystore_passwd]}).encode()
+        request(f"/eth/v1/keystores", data=req_data)
+        print("Keystore imported")
+
+
+    print(thematic_break)
+    print(f"Success. All keystores imported.")
+    return 0
 
 
 thematic_break = "-" * 70
@@ -118,4 +129,5 @@ args = parser.parse_args()
 if not args.auth or not args.host:
     parser.error(f"Must provide keymanager API host and auth via command line options or environment variables ({api_host_env_key} and {api_auth_env_key})")
 
-raise SystemExit(args.func(args))
+exit_code = args.func(args)
+raise SystemExit(exit_code)
